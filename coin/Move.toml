@@ -1,0 +1,11 @@
+[package]
+name = "recrd"
+edition = "2024.beta"
+license = "Apache-2.0"           
+authors = ["Jose Cerqueira (jose@interestprotocol.com)"]   
+
+[dependencies]
+
+[addresses]
+recrd = "0x0"
+multisig = "0x1"

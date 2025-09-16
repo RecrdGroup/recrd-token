@@ -1,0 +1,12 @@
+[package]
+name = "recrd_staking"
+edition = "2024.beta"
+license = "Apache-2.0"           
+authors = ["Jose Cerqueira (jose@interestprotocol.com)"]   
+
+[dependencies]
+recrd = { local = "../coin" }
+
+[addresses]
+recrd_staking = "0x0"
+multisig = "0x1"
