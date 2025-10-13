@@ -40,3 +40,4 @@ sui.log.*
 
 # Sui
 build
+build/*
