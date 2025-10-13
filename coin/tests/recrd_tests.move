@@ -14,7 +14,7 @@ use sui::{
 const SENDER: address = @0x0;
 
 #[test]
-fun test_init() {
+fun test_end_to_end() {
     let mut scenario = ts::begin(SENDER);
 
     let mut coin_registry = coin_registry::create_coin_data_registry_for_testing(scenario.ctx());
