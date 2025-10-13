@@ -25,7 +25,7 @@ fun test_end_to_end() {
 
     let recrd = scenario.take_shared<Recrd>();
 
-    // publisher was claimed and sent to multisig
+    // publisher was claimed and sent to the @multisig address
     let publisher = scenario.take_from_address<Publisher>(@multisig);
     destroy(publisher);
 
