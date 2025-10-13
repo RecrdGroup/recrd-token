@@ -1,4 +1,4 @@
-/// @notice The UpgradeCap will be burnt to make this contract immutable to ensure that Recrd coin can never be minted or burnt.
+/// @notice The UpgradeCap will be burnt to make this contract immutable.
 module recrd::recrd;
 
 use sui::{coin_registry::CoinRegistry, package};
