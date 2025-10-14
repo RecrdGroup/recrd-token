@@ -38,7 +38,7 @@ fun init(otw: RECRD, ctx: &mut TxContext) {
 // === Create Recrd Coin ===
 
 public fun new(recrd: Recrd, coin_registry: &mut CoinRegistry, ctx: &mut TxContext) {
-    let (mut current_initializer, mut treasury_cap) = coin_registry.new_currency<Recrd>(
+    let (mut currency_initializer, mut treasury_cap) = coin_registry.new_currency<Recrd>(
         DECIMALS,
         SYMBOL.to_string(),
         NAME.to_string(),
@@ -49,9 +49,9 @@ public fun new(recrd: Recrd, coin_registry: &mut CoinRegistry, ctx: &mut TxConte
 
     treasury_cap.mint_and_transfer(TOTAL_SUPPLY, @multisig, ctx);
 
-    current_initializer.make_supply_fixed(treasury_cap);
+    currency_initializer.make_supply_fixed(treasury_cap);
 
-    let metadata_cap = current_initializer.finalize(ctx);
+    let metadata_cap = currency_initializer.finalize(ctx);
 
     transfer::public_transfer(metadata_cap, @multisig);
 
