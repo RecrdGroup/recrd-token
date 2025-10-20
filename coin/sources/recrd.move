@@ -1,8 +1,7 @@
-/// @notice The UpgradeCap will be burnt to make this contract immutable to ensure that Recrd coin can never be minted or burnt.
+/// @notice The UpgradeCap will be burnt to make this contract immutable.
 module recrd::recrd;
 
-use std::{ascii, string};
-use sui::{coin::{Self, CoinMetadata, TreasuryCap}, dynamic_object_field as dof};
+use sui::{coin_registry::CoinRegistry, package};
 
 // === Constants ===
 
@@ -18,98 +17,47 @@ const NAME: vector<u8> = b"Recrd";
 
 public struct RECRD() has drop;
 
-public struct RecrdAdmin has key, store {
-    id: UID,
-}
-
-public struct Key() has copy, drop, store;
-
-public struct RecrdTreasury has key {
+public struct Recrd has key {
     id: UID,
 }
 
 // === Initializer ===
 
 fun init(otw: RECRD, ctx: &mut TxContext) {
-    let (mut treasury_cap, coin_metadata) = coin::create_currency(
-        otw,
+    let publisher = package::claim(otw, ctx);
+
+    transfer::public_transfer(publisher, @multisig);
+
+    let recrd = Recrd {
+        id: object::new(ctx),
+    };
+
+    transfer::share_object(recrd);
+}
+
+// === Create Recrd Coin ===
+
+public fun new(recrd: Recrd, coin_registry: &mut CoinRegistry, ctx: &mut TxContext) {
+    let (mut currency_initializer, mut treasury_cap) = coin_registry.new_currency<Recrd>(
         DECIMALS,
-        SYMBOL,
-        NAME,
-        b"",
-        option::none(),
+        SYMBOL.to_string(),
+        NAME.to_string(),
+        b"".to_string(),
+        b"".to_string(),
         ctx,
     );
 
     treasury_cap.mint_and_transfer(TOTAL_SUPPLY, @multisig, ctx);
 
-    let mut recrd_treasury = RecrdTreasury {
-        id: object::new(ctx),
-    };
+    currency_initializer.make_supply_fixed(treasury_cap);
 
-    dof::add(&mut recrd_treasury.id, Key(), treasury_cap);
+    let metadata_cap = currency_initializer.finalize(ctx);
 
-    let recrd_admin = RecrdAdmin {
-        id: object::new(ctx),
-    };
+    transfer::public_transfer(metadata_cap, @multisig);
 
-    transfer::public_transfer(recrd_admin, @multisig);
-    transfer::share_object(recrd_treasury);
-    transfer::public_share_object(coin_metadata);
-}
+    let Recrd { id } = recrd;
 
-// === View Functions ===
-
-public fun total_supply(self: &RecrdTreasury): u64 {
-    self.treasury_cap().total_supply()
-}
-
-// === Admin Only Functions ===
-
-/// Update name of the coin in `CoinMetadata`
-public fun update_name(
-    self: &RecrdTreasury,
-    metadata: &mut CoinMetadata<RECRD>,
-    _: &RecrdAdmin,
-    name: string::String,
-) {
-    self.treasury_cap().update_name(metadata, name);
-}
-
-/// Update the symbol of the coin in `CoinMetadata`
-public fun update_symbol(
-    self: &RecrdTreasury,
-    metadata: &mut CoinMetadata<RECRD>,
-    _: &RecrdAdmin,
-    symbol: ascii::String,
-) {
-    self.treasury_cap().update_symbol(metadata, symbol);
-}
-
-/// Update the description of the coin in `CoinMetadata`
-public fun update_description(
-    self: &RecrdTreasury,
-    metadata: &mut CoinMetadata<RECRD>,
-    _: &RecrdAdmin,
-    description: string::String,
-) {
-    self.treasury_cap().update_description(metadata, description);
-}
-
-/// Update the url of the coin in `CoinMetadata`
-public fun update_icon_url(
-    self: &RecrdTreasury,
-    metadata: &mut CoinMetadata<RECRD>,
-    _: &RecrdAdmin,
-    url: ascii::String,
-) {
-    self.treasury_cap().update_icon_url(metadata, url);
-}
-
-// === Private Function ===
-
-fun treasury_cap(self: &RecrdTreasury): &TreasuryCap<RECRD> {
-    dof::borrow(&self.id, Key())
+    id.delete();
 }
 
 // === Test Only Functions ===
@@ -135,11 +83,6 @@ public fun name(): vector<u8> {
 }
 
 #[test_only]
-public fun total_supply_for_test(): u64 {
+public fun total_supply(): u64 {
     TOTAL_SUPPLY
-}
-
-#[test_only]
-public fun treasury_cap_for_test(self: &RecrdTreasury): &TreasuryCap<RECRD> {
-    self.treasury_cap()
 }

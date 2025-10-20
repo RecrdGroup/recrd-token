@@ -1,6 +1,6 @@
 module recrd_staking::recrd_staking;
 
-use recrd::recrd::RECRD;
+use recrd::recrd::Recrd;
 use sui::{balance::{Self, Balance}, coin::Coin, display, package, table::{Self, Table}};
 
 // === Structs ===
@@ -10,7 +10,7 @@ public struct RECRD_STAKING() has drop;
 public struct RecrdStakingAccount has key {
     id: UID,
     owner: address,
-    stake: Balance<RECRD>,
+    stake: Balance<Recrd>,
 }
 
 public struct RecrdStaking has key {
@@ -67,7 +67,7 @@ public fun transfer_to_owner(account: RecrdStakingAccount) {
     transfer::transfer(account, owner);
 }
 
-public fun stake(account: &mut RecrdStakingAccount, stake: Coin<RECRD>, _ctx: &mut TxContext) {
+public fun stake(account: &mut RecrdStakingAccount, stake: Coin<Recrd>, _ctx: &mut TxContext) {
     let stake_value = stake.value();
 
     assert!(stake_value != 0, recrd_staking::recrd_staking_errors::zero_stake!());
@@ -86,7 +86,7 @@ public fun unstake(
     account: &mut RecrdStakingAccount,
     amount: u64,
     ctx: &mut TxContext,
-): Coin<RECRD> {
+): Coin<Recrd> {
     assert!(
         account.stake.value() >= amount && amount != 0,
         recrd_staking::recrd_staking_errors::invalid_unstake!(),

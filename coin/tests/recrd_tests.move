@@ -1,82 +1,67 @@
 #[test_only]
 module recrd::recrd_tests;
 
-use recrd::recrd::{Self, RECRD, RecrdTreasury, RecrdAdmin};
-use sui::{coin::{Coin, CoinMetadata}, test_scenario as ts, test_utils::{destroy, assert_eq}};
+use recrd::recrd::{Self, Recrd};
+use std::unit_test::assert_eq;
+use sui::{
+    coin::Coin,
+    coin_registry::{Self, Currency, MetadataCap},
+    package::Publisher,
+    test_scenario as ts,
+    test_utils::destroy
+};
 
-const SENDER: address = @0x1;
+const SENDER: address = @0x0;
 
 #[test]
-fun test_init() {
+fun test_end_to_end() {
     let mut scenario = ts::begin(SENDER);
+
+    let mut coin_registry = coin_registry::create_coin_data_registry_for_testing(scenario.ctx());
 
     recrd::init_for_test(scenario.ctx());
 
     scenario.next_tx(SENDER);
 
-    let coin_metadata = scenario.take_shared<CoinMetadata<RECRD>>();
-    let recrd_treasury = scenario.take_shared<RecrdTreasury>();
+    let recrd = scenario.take_shared<Recrd>();
 
-    assert_eq(coin_metadata.get_decimals(), recrd::decimals());
-    assert_eq(coin_metadata.get_symbol(), recrd::symbol().to_ascii_string());
-    assert_eq(coin_metadata.get_name(), recrd::name().to_string());
-    assert_eq(coin_metadata.get_icon_url(), option::none());
-    assert_eq(coin_metadata.get_description(), b"".to_string());
-    assert_eq(
-        recrd_treasury.treasury_cap_for_test().total_supply(),
-        recrd::total_supply_for_test(),
-    );
-    assert_eq(recrd_treasury.total_supply(), recrd::total_supply_for_test());
+    // publisher was claimed and sent to the @multisig address
+    let publisher = scenario.take_from_address<Publisher>(@multisig);
+    destroy(publisher);
 
-    let recrd_coin = scenario.take_from_address<Coin<RECRD>>(@multisig);
-    let recrd_admin = scenario.take_from_address<RecrdAdmin>(@multisig);
+    assert_eq!(coin_registry.exists<Recrd>(), false);
 
-    assert_eq(recrd_coin.burn_for_testing(), recrd::total_supply_for_test());
+    // Create coin
+    recrd.new(&mut coin_registry, scenario.ctx());
 
-    destroy(recrd_admin);
-    destroy(recrd_treasury);
-    destroy(coin_metadata);
-    destroy(scenario);
-}
+    assert_eq!(coin_registry.exists<Recrd>(), true);
 
-#[test]
-fun test_admin_functions() {
-    let mut scenario = ts::begin(SENDER);
+    scenario.next_tx(SENDER);
 
-    recrd::init_for_test(scenario.ctx());
+    let currency = scenario.take_shared<Currency<Recrd>>();
 
-    scenario.next_tx(@multisig);
+    assert_eq!(currency.is_metadata_cap_claimed(), true);
+    assert_eq!(currency.is_supply_fixed(), true);
+    assert_eq!(currency.total_supply(), option::some(recrd::total_supply()));
+    assert_eq!(currency.is_regulated(), false);
+    assert_eq!(currency.is_supply_burn_only(), false);
 
-    let mut coin_metadata = scenario.take_shared<CoinMetadata<RECRD>>();
-    let recrd_treasury = scenario.take_shared<RecrdTreasury>();
-    let recrd_admin = scenario.take_from_sender<RecrdAdmin>();
+    let metadata_cap = scenario.take_from_address<MetadataCap<Recrd>>(@multisig);
 
-    let new_description = b"Recrd is a token for the Recrd ecosystem".to_string();
+    assert_eq!(object::id(&metadata_cap), *currency.metadata_cap_id().borrow());
 
-    recrd_treasury.update_description(&mut coin_metadata, &recrd_admin, new_description);
+    assert_eq!(currency.decimals(), recrd::decimals());
+    assert_eq!(currency.symbol(), recrd::symbol().to_string());
+    assert_eq!(currency.name(), recrd::name().to_string());
+    assert_eq!(currency.icon_url(), b"".to_string());
+    assert_eq!(currency.description(), b"".to_string());
 
-    assert_eq(coin_metadata.get_description(), new_description);
+    let recrd_coin = scenario.take_from_address<Coin<Recrd>>(@multisig);
 
-    let new_icon_url = b"https://recrd.com/icon.png".to_ascii_string();
+    assert_eq!(recrd_coin.burn_for_testing(), *currency.total_supply().borrow());
 
-    recrd_treasury.update_icon_url(&mut coin_metadata, &recrd_admin, new_icon_url);
-
-    assert_eq(coin_metadata.get_icon_url().destroy_some().inner_url(), new_icon_url);
-
-    let new_name = b"Recrd".to_string();
-
-    recrd_treasury.update_name(&mut coin_metadata, &recrd_admin, new_name);
-
-    assert_eq(coin_metadata.get_name(), new_name);
-
-    let new_symbol = b"RCD".to_ascii_string();
-
-    recrd_treasury.update_symbol(&mut coin_metadata, &recrd_admin, new_symbol);
-
-    assert_eq(coin_metadata.get_symbol(), new_symbol);
-
-    destroy(recrd_admin);
-    destroy(recrd_treasury);
-    destroy(coin_metadata);
+    destroy(metadata_cap);
+    destroy(currency);
+    destroy(coin_registry);
     destroy(scenario);
 }
